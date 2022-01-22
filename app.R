@@ -10,7 +10,7 @@ library(DT)
 #install.packages("janitor")
 library(janitor)
 library(dplyr)
-
+ 
 # Source helper functions -----
 source("C:/Users/Bela Boente/Desktop/Programming/DataVisualization/music_explorer/helpers.R")
 source("C:/Users/Bela Boente/Desktop/Programming/DataVisualization/music_explorer/styles.R")
@@ -158,7 +158,7 @@ server <- function(input, output) {
       
       ggplot(new_df, aes(x=artists,y = popularity), environment=environment()) + 
       geom_bar(stat = "identity",fill="darkblue", color="white") + 
-      geom_text(aes(label = name), vjust = 1.5, colour = "white")+
+      geom_text(aes(label = name), vjust = 1.5, colour = "white")
 
   })
   
