@@ -61,33 +61,74 @@ summary(df_song_metadata)
 
 # User interface ----
 ui <- fluidPage(
-  theme = shinytheme("spacelab"),
+  theme = shinytheme("united"),
   
   tags$head(
-    tags$style(HTML('#run{background-color:orange}'))
+    tags$style(type="text/css", ".irs { width: 100% }")
   ),
 
    fluidRow(
+    column(2,), 
+    column(10,style="left:3rem;",
+           sliderInput("year_avg_year",
+                       label = "Years", min = 1921, 
+                       max = 2021, 
+                       value = c(1921, 2021)),     
+           ),
      
     column(2,
-           lapply(1:5, function(iter) {
-             actionButton("runif", paste0("variable",iter), class="btn-warning")
-           })),
-    column(10,
+            fluidRow(
+              column(12,style="",
+                     actionButton("runif", "average", 
+                                  icon("align-center"), 
+                                  class="btn btn-primary mt-5",
+                                  style="margin:1rem; width:100%", 
+                                  ),
+
+                    actionButton("runif", "median", 
+                                 icon("equals"), 
+                                 class="btn",
+                                 style="margin:1rem; width:100%", 
+                                 ),
+                    
+                    actionButton("runif", "boxplot", 
+                                 icon("box-open"), 
+                                 class="btn",
+                                 style="margin:1rem; width:100%", 
+                    ),
+            ))),
+    column(10, style="align-items:center",
            plotOutput("avg_per_year_plot")),
    
     column(2),
-    column(10,
-           lapply(1:5, function(iter) {
-             actionButton("runif", paste0("variable",iter), 
-                          icon("paper-plane"), 
-                          style="color: blue; background-color: white; border-color: #2e6da4")
-           })
+    column(10,style="margin-top:0.5rem,left:3rem",
+             actionButton("runif", "acousticness", 
+                          icon("guitar"), 
+                          class="btn btn-success"),
+           
+             actionButton("runif", "danceability", 
+                          icon("volume-up"), 
+                          class="btn btn-danger"
+                          ),
+           
+             actionButton("runif", "duration", 
+                          icon("hourglass-half"), 
+                          class="btn btn-warning"),
+           
+             actionButton("runif", "energy", 
+                          icon("bolt"), 
+                          class="btn btn-info"),
+           
     )
   
   )
 
 )
+
+print(      avg_maker(clean, 
+                      "danceability", 
+                      c(1921, 2021)))
+
 
 # Server logic ----
 server <- function(input, output) {
@@ -98,13 +139,17 @@ server <- function(input, output) {
   
   output$avg_per_year_plot = renderPlot({ 
     
-    plot.default(
-      avg_maker(clean, 
+   ggplot(
+      avg_maker(clean,
                 "danceability", 
-                c(1921, 2021)))
+                c(1921, 2021)),aes(x=year,y=mean_values))+
+      geom_point(shape=18, color="blue")+
+      geom_smooth()
   })
 
 }
+
+
 
 
 
