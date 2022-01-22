@@ -7,6 +7,7 @@ library(GGally)
 library(stringr)
 library(plotly)
 library(DT)
+library(purrrlyr)
 #install.packages("janitor")
 library(janitor)
 library(dplyr)
@@ -35,7 +36,7 @@ colnames(clean)
 
 
 clean %>% 
-  select(c("acousticness", "danceability", "duration_ms", "energy", "loudness", "tempo")) -> 
+  select(c("year", "acousticness", "danceability", "duration_ms", "energy", "loudness", "tempo")) -> 
   df_song_data 
 
 clean %>% 
@@ -43,6 +44,16 @@ clean %>%
   df_song_metadata
 
 
+df_song_data %>% 
+  slice_rows("year") %>% 
+  dmap(mean) -> 
+  mean_val_song_data
+
+df_song_data %>% 
+ group_by(year) %>% 
+ summarise(across(everything(), list(median))) ->
+ median_val_song_data
+ colnames(median_val_song_data) = colnames(df_song_data)
 
 
 summary(df_song_data)
@@ -79,13 +90,13 @@ ui <- fluidPage(
     column(2,
             fluidRow(
               column(12,style="",
-                     actionButton("runif", "average", 
+                     actionButton("btn_mean", "average", 
                                   icon("align-center"), 
                                   class="btn btn-primary mt-5",
                                   style="margin:1rem; width:100%", 
                                   ),
 
-                    actionButton("runif", "median", 
+                    actionButton("btn_median", "median", 
                                  icon("equals"), 
                                  class="btn",
                                  style="margin:1rem; width:100%", 
@@ -125,34 +136,42 @@ ui <- fluidPage(
 
 )
 
-print(      avg_maker(clean, 
-                      "danceability", 
-                      c(1921, 2021)))
 
+plot_data = mean_val_song_data 
 
 # Server logic ----
 server <- function(input, output) {
-
   
-
+  btn_mean = reactive({ input$btn_mean }) 
+  
+  btn_median = reactive({ input$btn_median }) 
+  
+  observeEvent(input$btn_mean, {
+    plot_data = mean_val_song_data
+  })
+  
+  observeEvent(input$btn_median, {
+    plot_data = median_val_song_data
+  })  
   
   
   output$avg_per_year_plot = renderPlot({ 
-    
+
    ggplot(
-      avg_maker(clean,
-                "danceability", 
-                c(1921, 2021)),aes(x=year,y=mean_values))+
+      plot_data,aes(x=year,y=acousticness))+
       geom_point(shape=18, color="blue")+
       geom_smooth()
   })
-
 }
 
 
 
 
 
+  
+
+  
+  
 # Run app ----
 shinyApp(ui, server)
 
