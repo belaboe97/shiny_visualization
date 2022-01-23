@@ -8,6 +8,9 @@ library(stringr)
 library(plotly)
 library(DT)
 library(purrrlyr)
+library(shinyBS)
+library("reshape2")
+
 #install.packages("janitor")
 library(janitor)
 library(dplyr)
@@ -24,8 +27,6 @@ df_music =  read.csv("C:/Users/Bela Boente/Desktop/Programming/DataVisualization
 
 clean<-clean_names(df_music)
 
-
-
 #summary_df <- stat.desc(df_music) 
 
 
@@ -35,19 +36,34 @@ colnames(clean)
 #https://dhruv-khurjekar.medium.com/investigating-spotifys-danceability-index-other-song-attributes-1983142f7dfd
 
 
+clean$tempo = scaled_values$tempo
+clean$loudness = scaled_values$loudness
+clean$duration_ms = scaled_values$duration_ms
+
 clean %>% 
   select(c("year", "acousticness", "danceability", "duration_ms", "energy", "loudness", "tempo")) -> 
   df_song_data 
+
 
 clean %>% 
   select(c("name", "artists", "popularity", "release_date", "year")) ->
   df_song_metadata
 
+clean %>% select(duration_ms, loudness, tempo) %>% 
+  lapply( function(x){(x-min(x))/(max(x)-min(x))}) -> 
+  scaled_values
+
+
+
 
 df_song_data %>% 
   slice_rows("year") %>% 
-  dmap(mean) -> 
+  dmap(mean)  -> 
   mean_val_song_data
+
+
+
+
 
 df_song_data %>% 
  group_by(year) %>% 
@@ -75,7 +91,10 @@ ui <- fluidPage(
   theme = shinytheme("united"),
   
   tags$head(
-    tags$style(type="text/css", ".irs { width: 100% }")
+    tags$style(type="text/css", ".irs { width: 100% }"),
+    tags$style(HTML('#btn_mean{margin:1rem; width:100%}')),
+    tags$style(HTML('#btn_median{margin:1rem; width:100%}')),
+    tags$style(HTML('#btn_boxplot{margin:1rem; width:100%}')),
   ),
 
    fluidRow(
@@ -90,19 +109,19 @@ ui <- fluidPage(
     column(2,
             fluidRow(
               column(12,style="",
-                     actionButton("btn_mean", "average", 
+                     bsButton("btn_mean", "average", 
                                   icon("align-center"), 
-                                  class="btn btn-primary mt-5",
+                                  class="sideBtns btn btn-primary",
                                   style="margin:1rem; width:100%", 
                                   ),
 
-                    actionButton("btn_median", "median", 
+                    bsButton("btn_median", "median", 
                                  icon("equals"), 
                                  class="btn",
-                                 style="margin:1rem; width:100%", 
+                                 style="margin:1rem; width:100%",
                                  ),
                     
-                    actionButton("runif", "boxplot", 
+                    bsButton("btn_boxplot", "boxplot", 
                                  icon("box-open"), 
                                  class="btn",
                                  style="margin:1rem; width:100%", 
@@ -137,38 +156,51 @@ ui <- fluidPage(
 )
 
 
-plot_data = mean_val_song_data 
+
+mean_val_song_data <- melt(mean_val_song_data, id="year")
 
 # Server logic ----
-server <- function(input, output) {
+server <- function(input, output,session) {
   
-  btn_mean = reactive({ input$btn_mean }) 
+  reactv = reactiveValues(plot_data = mean_val_song_data, color="red")
   
-  btn_median = reactive({ input$btn_median }) 
+  year_avg_year = reactive({ input$year_avg_year })
   
   observeEvent(input$btn_mean, {
-    plot_data = mean_val_song_data
+    reactv$plot_data = mean_val_song_data
+    reactv$color="red"
+    updateButton(session,'btn_median',style = "secondary")
+    updateButton(session,'btn_boxplot',style = "secondary")
+    updateButton(session,'btn_mean',style = "primary")
   })
   
   observeEvent(input$btn_median, {
-    plot_data = median_val_song_data
+    data$plot_data = median_val_song_data
+    reactv$color="blue"
+    updateButton(session,'btn_median',style = "primary")
+    updateButton(session,'btn_boxplot',style = "secondary")
+    updateButton(session,'btn_mean',style = "secondary")
   })  
   
+  observeEvent(input$btn_boxplot, {
+    data$plot_data = median_val_song_data
+    reactv$color="blue"
+    updateButton(session,'btn_median',style = "secondary")
+    updateButton(session,'btn_boxplot',style = "primary")
+    updateButton(session,'btn_mean',style = "secondary")
+  })  
+
   
-  output$avg_per_year_plot = renderPlot({ 
+   output$avg_per_year_plot = renderPlot({ 
+    
+   print(reactv$color)
 
    ggplot(
-      plot_data,aes(x=year,y=acousticness))+
-      geom_point(shape=18, color="blue")+
+      reactv$plot_data,aes(x=year,y=value, colour=variable))+
+      geom_point(shape=18, color=reactv$color)+
       geom_smooth()
   })
 }
-
-
-
-
-
-  
 
   
   
