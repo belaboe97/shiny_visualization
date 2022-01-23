@@ -134,22 +134,38 @@ ui <- fluidPage(
     tabPanel("Year Details", fluid = TRUE,
              br(),
              fluidRow(
-               column(6,offset = 4,
-                      sliderInput("year_for_details", label = "Years", min = 1921, 
-                                  max = 2020, value = 2000, step=1, sep = ""),
+               column(5,offset = 1,
+                      sliderInput("year_for_details_left", label = "Select Year:", min = 1921, 
+                                  max = 2020, value = 1921, step=1, sep = ""),
+               ),
+               column(5,offset = 1,
+                      sliderInput("year_for_details_right", label = "Select Year:", min = 1921, 
+                                  max = 2020, value = 2020, step=1, sep = ""),
+               ),
+             ),
+            fluidRow(
+               column(6, offset = 0,
+                      plotOutput("year_radar_details_left"),
+                      plotOutput("year_corr_details_left"),
+                      plotOutput("year_music_key_details_left")
+               ),
+               column(6, offset = 0,
+                      plotOutput("year_radar_details_right"),
+                      plotOutput("year_corr_details_right"),
+                      plotOutput("year_music_key_details_right")
                )
              ),
              fluidRow(
                column(8, offset = 2,
-                      plotOutput("year_radar_details"),
+                     # plotOutput("year_radar_details_left"),
                )
              ),
              fluidRow(
                column(6, offset = 0,
-                      plotOutput("year_corr_details")
+                  #    plotOutput("year_corr_details_left")
                ),
                column(6,
-                      plotOutput("year_music_key_details")
+                  #    plotOutput("year_music_key_details_left")
                ),
              ),
              
@@ -169,7 +185,9 @@ server <- function(input, output) {
   year_avg_year = reactive({ input$year_avg_year })
   popularity_per_year = reactive({ input$popularity_per_year})
   artist_popularity_per_year = reactive({ input$artist_popularity_per_year })
-  year_for_details = reactive({ input$year_for_details})
+  year_for_details_left = reactive({ input$year_for_details_left})
+  year_for_details_right = reactive({ input$year_for_details_right})
+  
   
   output$avg_per_year_plot = renderPlot({ 
     
@@ -198,8 +216,8 @@ server <- function(input, output) {
 
   })
   
-  output$year_radar_details = renderPlot({
-    detail_year_song_data %>% filter( year == year_for_details()) -> selected_year_data
+  output$year_radar_details_left = renderPlot({
+    detail_year_song_data %>% filter( year == year_for_details_left()) -> selected_year_data
     selected_year_radar_data = subset(selected_year_data, select = -c(year, duration_s, key, loudness, tempo))
     
     selected_year_radar_data %>%
@@ -207,22 +225,6 @@ server <- function(input, output) {
       selected_year_radar_data_means
     num_columns = length(colnames(selected_year_radar_data_means))
     radar_chart_data = rbind(rep(1, num_columns), rep(0, num_columns), selected_year_radar_data_means)
-    pretty_radarchart <- function(data, color = "#00AFBB", 
-                                  vlabels = colnames(data), vlcex = 0.7,
-                                  caxislabels = NULL, title = NULL){
-      radarchart(
-        data, axistype = 1,
-        # Customize the polygon
-        pcol = color, pfcol = scales::alpha(color, 0.5), plwd = 2, plty = 1,
-        # Customize the grid
-        cglcol = "grey", cglty = 1, cglwd = 0.8,
-        # Customize the axis
-        axislabcol = "grey", 
-        # Variable labels
-        vlcex = vlcex, vlabels = vlabels,
-        caxislabels = caxislabels, title = title,
-      )
-    }
     
     op <- par(mar = c(1, 2, 2, 1))
     pretty_radarchart(radar_chart_data, caxislabels = c(0, 5, 10, 15, 20))
@@ -230,11 +232,9 @@ server <- function(input, output) {
   })
   
   
-  output$year_corr_details = renderPlot({
-    print(year_for_details())
-    print(category_avg_year())
+  output$year_corr_details_left = renderPlot({
     
-    detail_year_song_data %>% filter( year == year_for_details()) -> selected_year_data
+    detail_year_song_data %>% filter( year == year_for_details_left()) -> selected_year_data
     selected_year_data = subset(selected_year_data, select= -c(year))
     M = cor(selected_year_data)
     #corrplot(M, method = 'square', order = 'FPC', diag = FALSE)
@@ -249,8 +249,55 @@ server <- function(input, output) {
     
   })
   
-  output$year_music_key_details = renderPlot({
-    detail_year_song_data %>% filter( year == year_for_details()) -> selected_year_data
+  output$year_music_key_details_left = renderPlot({
+    detail_year_song_data %>% filter( year == year_for_details_left()) -> selected_year_data
+    selected_year_data = subset(selected_year_data, select= -c(year))
+    
+    ggplot( selected_year_data, aes(x=key)) +
+      geom_bar(fill="#69b3a2", color="#e9ecef", alpha=0.9) +
+      ggtitle("Musical Key Histogram") +
+      theme_ipsum() +
+      theme(
+        plot.title = element_text(size=15)
+      ) + scale_x_continuous(breaks=0:11,
+                             labels=c("C","C#","D","D#","E","F","F#","G","G#","A","A#","B"))
+  })
+  
+  output$year_radar_details_right = renderPlot({
+    detail_year_song_data %>% filter( year == year_for_details_right()) -> selected_year_data
+    selected_year_radar_data = subset(selected_year_data, select = -c(year, duration_s, key, loudness, tempo))
+    
+    selected_year_radar_data %>%
+      summarise_at(colnames(selected_year_radar_data), mean, na.rm = TRUE) -> 
+      selected_year_radar_data_means
+    num_columns = length(colnames(selected_year_radar_data_means))
+    radar_chart_data = rbind(rep(1, num_columns), rep(0, num_columns), selected_year_radar_data_means)
+    
+    op <- par(mar = c(1, 2, 2, 1))
+    pretty_radarchart(radar_chart_data, caxislabels = c(0, 5, 10, 15, 20))
+    par(op)
+  })
+  
+  
+  output$year_corr_details_right = renderPlot({
+    
+    detail_year_song_data %>% filter( year == year_for_details_right()) -> selected_year_data
+    selected_year_data = subset(selected_year_data, select= -c(year))
+    M = cor(selected_year_data)
+    #corrplot(M, method = 'square', order = 'FPC', diag = FALSE)
+    #corrplot.mixed(M, order = 'alphabet', tl.pos='lb')
+    ggcorrplot(M,
+               hc.order = FALSE, type = "lower",
+               lab = TRUE,
+               digits = 1,
+               ggtheme = ggplot2::theme_dark(),
+    )
+    
+    
+  })
+  
+  output$year_music_key_details_right = renderPlot({
+    detail_year_song_data %>% filter( year == year_for_details_right()) -> selected_year_data
     selected_year_data = subset(selected_year_data, select= -c(year))
     
     ggplot( selected_year_data, aes(x=key)) +
