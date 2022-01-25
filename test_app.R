@@ -56,15 +56,22 @@ get_data_mean = function(data,years){
   return(df_song_data)
 }
 
-get_data_median = function(data){
+get_data_median = function(data,year){
   clean %>% 
     select(get_properties(mean_val_song_data),year) %>% 
     group_by("year") %>% 
      summarise(across(everything(), list(median))) ->
      median_val_song_data
      colnames(median_val_song_data) = colnames(df_song_data)
-  #df_song_data =  melt(median_val_song_data, id="year")
+  df_song_data =  melt(median_val_song_data, id="year")
   return(df_song_data)
+}
+
+get_data_boxplot = function(data,years){
+  boxplot_data = clean %>% 
+    select(get_properties(clean), year) %>% melt(id.vars="year") %>%
+    filter(year > years[1] & year < years[2])
+  return(boxplot_data)
 }
 
 
@@ -83,6 +90,10 @@ clean %>%
 
 df_song_data_mean = get_data_mean(clean,c("1921","2020"))
 df_song_data_median = get_data_median(clean)
+
+df_song_data_median
+
+get_properties(clean)
 
 
 clean %>% 
@@ -228,36 +239,65 @@ switch_btn = function (value_string){
     showNotification("Atleast one graph must be displayed", type="error")
   }
 }
+
+
+color_coding = c("acousticness" = "#F2755B", 
+                 "danceability" = "#F2A65B", 
+                 "duration_ms" = "#F2DD5B",
+                 "energy" = "#BEF25B", 
+                 "loudness" = "#60F25B", 
+                 "tempo" = "#5BF2DA")
+
+
+reload_data = function(data, year, choice){
+  res
+  if(choice == 0){
+    res = get_data_mean(clean,year)
+  }
+  else if(choice ==1){
+    res = get_data_median(clean,year)
+  }
+  else if(choice ==2){
+    res = get_data_boxplot(clean,year)
+  }
+  return(res)
+}
+
+
+
+
+x =reload_data(clean,c("1921","1980"),"0")
+
+y =reload_data(clean,c("1921","1980"),"1")
+
+
 #print(d1)
 # Server logic ----
 server <- function(input, output,session) {
   
   year_avg_year = reactive({ input$year_avg_year })
-  reactv = reactiveValues(plot_data = get_data_mean(clean,c("1921","2020")) , color="red")
-  
+  reactv = reactiveValues(plot_data = reload_data(clean,c("1921","2020"),0), choice=0 )
+
   observeEvent(input$year_avg_year,{
-    reactv$plot_data <- get_data_mean(clean,input$year_avg_year)
+    reactv$plot_data <-  reload_data(clean,input$year_avg_year,reactv$choice)
   })
 
   observeEvent(input$btn_mean, {
-    reactv$plot_data = mean_val_song_data
-    reactv$color="red"
+    reactv$choice= 0
     updateButton(session,'btn_median',style = "secondary")
     updateButton(session,'btn_boxplot',style = "secondary")
     updateButton(session,'btn_mean',style = "primary")
   })
   
   observeEvent(input$btn_median, {
-    data$plot_data = d1
-    reactv$color="blue"
+    reactv$choice= 1
     updateButton(session,'btn_median',style = "primary")
     updateButton(session,'btn_boxplot',style = "secondary")
     updateButton(session,'btn_mean',style = "secondary")
   })  
   
   observeEvent(input$btn_boxplot, {
-    data$plot_data = median_val_song_data
-    reactv$color="blue"
+    reactv$choice= 2
     updateButton(session,'btn_median',style = "secondary")
     updateButton(session,'btn_boxplot',style = "primary")
     updateButton(session,'btn_mean',style = "secondary")
@@ -266,41 +306,52 @@ server <- function(input, output,session) {
   
   observeEvent(input$acoust, {
     switch_btn("acousticness")          
-    reactv$plot_data <- get_data_mean(clean,year_avg_year())})
+    reactv$plot_data <- reload_data(clean,input$year_avg_year,reactv$choice)})
   
   observeEvent(input$danceab, {
     switch_btn("danceability")   
-    reactv$plot_data <- get_data_mean(clean,year_avg_year())})
+    reactv$plot_data <- reload_data(clean,input$year_avg_year,reactv$choice)})
   
   observeEvent(input$dura, {
     switch_btn("duration_ms")   
-    reactv$plot_data <- get_data_mean(clean,year_avg_year())})
+    reactv$plot_data <- reload_data(clean,input$year_avg_year,reactv$choice)})
   
   observeEvent(input$engy, {
    switch_btn("energy")   
-   reactv$plot_data <- get_data_mean(clean,year_avg_year())})
+   reactv$plot_data <- reload_data(clean,input$year_avg_year,reactv$choice)})
   
   observeEvent(input$loud, {
    switch_btn("loudness") 
-   reactv$plot_data <- get_data_mean(clean,year_avg_year())})
+   reactv$plot_data <- reload_data(clean,input$year_avg_year,reactv$choice)})
   
   observeEvent(input$tempo, {
    switch_btn("tempo") 
-   reactv$plot_data <- get_data_mean(clean,year_avg_year())})
+   reactv$plot_data <- reload_data(clean,input$year_avg_year,reactv$choice)})
   
    output$avg_per_year_plot = renderPlot({ 
-
-   ggplot(
-      reactv$plot_data,aes(x=year,y=value, colour=variable))+
-      geom_point(shape=18)+
+    
+     if(reactv$choice == 0){
+       ggplot(
+          reactv$plot_data,aes(x=year,y=value, colour=variable))+
+          geom_point(shape=18)+
+          scale_color_manual(name = "Properties", 
+                             values = color_coding)+
+          geom_smooth()
+     }
+     else if(reactv$choice==1){
+       ggplot(
+         reactv$plot_data,aes(x=year,y=value, colour=variable))+
+         geom_point(shape=18)+
+         scale_color_manual(name = "Properties", 
+                            values = color_coding)+
+         geom_smooth()
+     }
+     else {
+       ggplot(reactv$plot_data) +
+       geom_boxplot(aes(x=year, y=value, color=variable))+
        scale_color_manual(name = "Properties", 
-                          values = c("acousticness" = "#F2755B", 
-                                     "danceability" = "#F2A65B", 
-                                     "duration_ms" = "#F2DD5B",
-                                     "energy" = "#BEF25B", 
-                                     "loudness" = "#60F25B", 
-                                     "tempo" = "#5BF2DA"))+
-      geom_smooth()
+                          values = color_coding)
+     }
   })
 }
 
