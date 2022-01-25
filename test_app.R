@@ -75,6 +75,40 @@ get_data_boxplot = function(data,years){
 }
 
 
+switch_btn = function (value_string){
+  
+  if(length(get_properties(clean)) > 1 || filterList[[value_string]] == F ){
+    if(filterList[[value_string]]) filterList[value_string]<<- F else filterList[value_string] <<- T 
+    print(filterList[[value_string]])
+  }
+  else{
+    showNotification("Atleast one graph must be displayed", type="error")
+  }
+}
+
+
+color_coding = c("acousticness" = "#F2755B", 
+                 "danceability" = "#F2A65B", 
+                 "duration_ms" = "#F2DD5B",
+                 "energy" = "#BEF25B", 
+                 "loudness" = "#60F25B", 
+                 "tempo" = "#5BF2DA")
+
+
+reload_data = function(data, year, choice){
+  res
+  if(choice == 0){
+    res = get_data_mean(clean,year)
+  }
+  else if(choice ==1){
+    res = get_data_median(clean,year)
+  }
+  else if(choice ==2){
+    res = get_data_boxplot(clean,year)
+  }
+  return(res)
+}
+
 clean %>% select(duration_ms, loudness, tempo) %>% 
   lapply( function(x){(x-min(x))/(max(x)-min(x))}) -> 
   scaled_values
@@ -82,59 +116,6 @@ clean %>% select(duration_ms, loudness, tempo) %>%
 clean$tempo = scaled_values$tempo
 clean$loudness = scaled_values$loudness
 clean$duration_ms = scaled_values$duration_ms
-
-
-clean %>% 
-  select(c("name", "artists", "popularity", "release_date", "year")) ->
-  df_song_metadata
-
-df_song_data_mean = get_data_mean(clean,c("1921","2020"))
-df_song_data_median = get_data_median(clean)
-
-df_song_data_median
-
-get_properties(clean)
-
-
-clean %>% 
-  select(c("year", "acousticness", "danceability", "duration_ms", "energy", "loudness", "tempo")) -> 
-  df_song_data 
-
-df_song_data %>% 
-  slice_rows("year") %>% 
-  dmap(mean)  -> 
-  mean_val_song_data
-
-mean_val_song_data <- melt(mean_val_song_data, id="year")
-
-# df_song_data %>% 
-#   slice_rows("year") %>% 
-#   dmap(mean)  -> 
-#   mean_val_song_data
-
-
-
-# df_song_data %>% 
-#  group_by(year) %>% 
-#  summarise(across(everything(), list(median))) ->
-#  median_val_song_data
-#  colnames(median_val_song_data) = colnames(df_song_data)
-
-
-summary(df_song_data_mean)
-#summary(df_song_data_median)
-# First conclusions: 
-# all the values are numeric, 
-# acousticness, danceability and energy might be scaled or artificially computed in an value range 
-# between 0 and 1
-summary(df_song_metadata)
-
-
-# Make df reactive (faster loading when filtering on user inputs)
-# TODO
-
-
-
 
 # User interface ----
 ui <- fluidPage(
@@ -223,53 +204,6 @@ ui <- fluidPage(
 )
 
 
-d1 = get_data_median(clean)
-
-d2 = get_data_mean(clean,c("1921","2020"))
-
-length(get_properties(clean))
-
-switch_btn = function (value_string){
-
-  if(length(get_properties(clean)) > 1 || filterList[[value_string]] == F ){
-    if(filterList[[value_string]]) filterList[value_string]<<- F else filterList[value_string] <<- T 
-    print(filterList[[value_string]])
-    }
-  else{
-    showNotification("Atleast one graph must be displayed", type="error")
-  }
-}
-
-
-color_coding = c("acousticness" = "#F2755B", 
-                 "danceability" = "#F2A65B", 
-                 "duration_ms" = "#F2DD5B",
-                 "energy" = "#BEF25B", 
-                 "loudness" = "#60F25B", 
-                 "tempo" = "#5BF2DA")
-
-
-reload_data = function(data, year, choice){
-  res
-  if(choice == 0){
-    res = get_data_mean(clean,year)
-  }
-  else if(choice ==1){
-    res = get_data_median(clean,year)
-  }
-  else if(choice ==2){
-    res = get_data_boxplot(clean,year)
-  }
-  return(res)
-}
-
-
-
-
-x =reload_data(clean,c("1921","1980"),"0")
-
-y =reload_data(clean,c("1921","1980"),"1")
-
 
 #print(d1)
 # Server logic ----
@@ -354,8 +288,6 @@ server <- function(input, output,session) {
      }
   })
 }
-
-
 
   
   
