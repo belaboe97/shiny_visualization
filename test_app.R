@@ -35,44 +35,82 @@ colnames(clean)
 #Get colnames
 #https://dhruv-khurjekar.medium.com/investigating-spotifys-danceability-index-other-song-attributes-1983142f7dfd
 
+filterList = list(
+                  "acousticness" = T, 
+                  "danceability" = T, 
+                  "duration_ms" = T, 
+                  "energy" = T, 
+                  "loudness" = T, 
+                  "tempo" = T)
+
+get_properties = function (flsit){return(names(filterList[filterList==T]))}
+
+get_data_mean = function(data){
+  clean %>% 
+    select(get_properties(mean_val_song_data), year) %>% 
+    slice_rows("year") %>% 
+    dmap(mean) -> 
+    df_song_data
+  df_song_data =  melt(df_song_data, id="year")
+  return(df_song_data)
+}
+
+get_data_median = function(data){
+  clean %>% 
+    select(get_properties(mean_val_song_data),year) %>% 
+    group_by("year") %>% 
+     summarise(across(everything(), list(median))) ->
+     median_val_song_data
+     colnames(median_val_song_data) = colnames(df_song_data)
+  #df_song_data =  melt(median_val_song_data, id="year")
+  return(df_song_data)
+}
+
+
+clean %>% select(duration_ms, loudness, tempo) %>% 
+  lapply( function(x){(x-min(x))/(max(x)-min(x))}) -> 
+  scaled_values
 
 clean$tempo = scaled_values$tempo
 clean$loudness = scaled_values$loudness
 clean$duration_ms = scaled_values$duration_ms
-
-clean %>% 
-  select(c("year", "acousticness", "danceability", "duration_ms", "energy", "loudness", "tempo")) -> 
-  df_song_data 
 
 
 clean %>% 
   select(c("name", "artists", "popularity", "release_date", "year")) ->
   df_song_metadata
 
-clean %>% select(duration_ms, loudness, tempo) %>% 
-  lapply( function(x){(x-min(x))/(max(x)-min(x))}) -> 
-  scaled_values
+df_song_data_mean = get_data_mean(clean)
+df_song_data_median = get_data_median(clean)
 
 
-
+clean %>% 
+  select(c("year", "acousticness", "danceability", "duration_ms", "energy", "loudness", "tempo")) -> 
+  df_song_data 
 
 df_song_data %>% 
   slice_rows("year") %>% 
   dmap(mean)  -> 
   mean_val_song_data
 
+mean_val_song_data <- melt(mean_val_song_data, id="year")
+
+# df_song_data %>% 
+#   slice_rows("year") %>% 
+#   dmap(mean)  -> 
+#   mean_val_song_data
 
 
 
+# df_song_data %>% 
+#  group_by(year) %>% 
+#  summarise(across(everything(), list(median))) ->
+#  median_val_song_data
+#  colnames(median_val_song_data) = colnames(df_song_data)
 
-df_song_data %>% 
- group_by(year) %>% 
- summarise(across(everything(), list(median))) ->
- median_val_song_data
- colnames(median_val_song_data) = colnames(df_song_data)
 
-
-summary(df_song_data)
+summary(df_song_data_mean)
+#summary(df_song_data_median)
 # First conclusions: 
 # all the values are numeric, 
 # acousticness, danceability and energy might be scaled or artificially computed in an value range 
@@ -132,39 +170,41 @@ ui <- fluidPage(
    
     column(2),
     column(10,style="margin-top:0.5rem,left:3rem",
-             actionButton("runif", "acousticness", 
+             actionButton("acoust", "acousticness", 
                           icon("guitar"), 
                           class="btn btn-success"),
            
-             actionButton("runif", "danceability", 
+             actionButton("danceab", "danceability", 
                           icon("volume-up"), 
                           class="btn btn-danger"
                           ),
            
-             actionButton("runif", "duration", 
+             actionButton("dura", "duration", 
                           icon("hourglass-half"), 
                           class="btn btn-warning"),
            
-             actionButton("runif", "energy", 
+             actionButton("engy", "energy", 
                           icon("bolt"), 
                           class="btn btn-info"),
            
     )
-  
+
   )
 
 )
 
 
+d2 = get_data_mean(clean)
 
-mean_val_song_data <- melt(mean_val_song_data, id="year")
-
+print(d2)
 # Server logic ----
 server <- function(input, output,session) {
   
-  reactv = reactiveValues(plot_data = mean_val_song_data, color="red")
+
+  reactv = reactiveValues(plot_data = d2 , color="red")
   
   year_avg_year = reactive({ input$year_avg_year })
+
   
   observeEvent(input$btn_mean, {
     reactv$plot_data = mean_val_song_data
@@ -189,11 +229,25 @@ server <- function(input, output,session) {
     updateButton(session,'btn_boxplot',style = "primary")
     updateButton(session,'btn_mean',style = "secondary")
   })  
-
+  
+  
+  observeEvent(input$acoust, {
+               if(filterList$acousticness) filterList$acousticness <<- F else filterList$acousticness <<- T
+               reactv$plot_data <- get_data_mean(clean)})
+  
+  observeEvent(input$danceab, {
+               if(filterList$danceability) filterList$danceability <<- F else filterList$danceability <<- T
+               reactv$plot_data <- get_data_mean(clean)})
+  
+  observeEvent(input$dura, {
+               if(filterList$duration_ms) filterList$duration_ms <<- F else filterList$duration_ms <<- T
+               reactv$plot_data <- get_data_mean(clean)})
+  
+  observeEvent(input$engy, {
+               if(filterList$energy) filterList$energy <<- F else filterList$energy <<- T
+               reactv$plot_data <- get_data_mean(clean)})
   
    output$avg_per_year_plot = renderPlot({ 
-    
-   print(reactv$color)
 
    ggplot(
       reactv$plot_data,aes(x=year,y=value, colour=variable))+
