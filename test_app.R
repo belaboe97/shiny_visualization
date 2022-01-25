@@ -96,7 +96,7 @@ color_coding = c("acousticness" = "#F2755B",
 
 
 reload_data = function(data, year, choice){
-  res
+  res = c()
   if(choice == 0){
     res = get_data_mean(clean,year)
   }
@@ -237,7 +237,6 @@ server <- function(input, output,session) {
     updateButton(session,'btn_mean',style = "secondary")
   })  
   
-  
   observeEvent(input$acoust, {
     switch_btn("acousticness")          
     reactv$plot_data <- reload_data(clean,input$year_avg_year,reactv$choice)})
@@ -281,15 +280,13 @@ server <- function(input, output,session) {
          geom_smooth()
      }
      else {
-       ggplot(reactv$plot_data) +
+       ggplot(reactv$plot_data) + 
        geom_boxplot(aes(x=year, y=value, color=variable))+
        scale_color_manual(name = "Properties", 
                           values = color_coding)
      }
   })
 }
-
-  
   
 # Run app ----
 shinyApp(ui, server)
