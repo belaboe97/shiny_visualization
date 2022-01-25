@@ -12,7 +12,7 @@ library(janitor)
 library(dplyr)
 library(ggcorrplot)
 library(corrplot)
-
+library(rlang)
 library(tidyverse)
 library(hrbrthemes)
 library(fmsb)
@@ -50,6 +50,11 @@ clean %>%
 clean %>% 
   select(c("name", "artists", "popularity", "release_date", "year")) ->
   df_song_metadata
+
+clean %>% 
+  select(c("name", "artists", "popularity", "year","acousticness", "danceability", "duration_s", "energy", "explicit", "instrumentalness", "key", "liveness", 
+           "loudness", "mode" , "speechiness", "tempo", "valence")) ->
+  df_search_table_Data
 
 clean %>% 
   select(c("acousticness", "danceability", "duration_s", "energy", "explicit", "instrumentalness", "key", "liveness", 
@@ -158,7 +163,8 @@ ui <- fluidPage(
                       code("Utf-8 encoding of the variables, prep"),
                       br(),
                       hr(),
-                      DT::dataTableOutput("stats_about_artist_table")
+                     # DT::dataTableOutput("stats_about_artist_table")
+                      DTOutput("stats_about_artist_table")
                )
              )
     ),
@@ -337,7 +343,11 @@ server <- function(input, output) {
                              labels=c("C","C#","D","D#","E","F","F#","G","G#","A","A#","B"))
   })
   
-  output$stats_about_artist_table <-  DT::renderDataTable(datatable(df_song_metadata))
+  output$stats_about_artist_table <-  renderDT(df_search_table_Data,
+                                               filter = "top",
+                                               options = list(
+                                                 pageLength = 50
+                                               ))
   
   
 }
