@@ -131,6 +131,7 @@ switch_btn = function (value_string){
   }
 }
 
+
 reload_data = function(data, year, choice){
   res = c()
   if(choice == 0){
@@ -177,7 +178,6 @@ clean$duration_s<- clean$duration_ms/1000
 
 colnames(clean)
 
-
 clean %>% select(duration_ms, loudness, tempo) %>% 
   lapply( function(x){(x-min(x))/(max(x)-min(x))}) -> 
   scaled_values
@@ -206,18 +206,28 @@ ui <- fluidPage(
   tags$head(
     tags$style(type="text/css", ".irs { width: 100% }"),
     tags$style(HTML('#btn_mean{margin:1rem; width:100%}')),
-    tags$style(HTML('#btn_median{margin:1rem; width:100%}')),
     tags$style(HTML('#btn_boxplot{margin:1rem; width:100%}')),
     tags$style(HTML('.btn-buttom {width: 15%}')),
+    tags$style(HTML('.bannerimage {width: 100%;
+                          background-image: url(header_img.jpg);
+                          height: 175px;
+                          background-color: purple;
+                          background-position: center;
+                          background-repeat: no-repeat;
+                          background-size: cover;
+                        }'))
   ),
-  
-  titlePanel("Music Explorer"),
-  
+
+  #uiOutput("img"),
+  h1(class="bannerimage"),
+  br(),
   tabsetPanel(
     tabPanel("Introduction", fluid = TRUE,
              
+             h3("Definition of Features"),
              br(),
-             tags$b(h1("Definition of Features")),
+             hr(),
+          
              h3("Acousticness"),
              h5("A confidence measure from 0.0 to 1.0 of whether the track is acoustic. 1.0 represents high confidence the track is acoustic."),
              h3("Danceability"),
@@ -245,15 +255,20 @@ ui <- fluidPage(
              h3("Valence"),
              h5("A measure from 0.0 to 1.0 describing the musical positiveness conveyed by a track. Tracks with high valence sound more positive (e.g. happy, cheerful, euphoric), while tracks with low valence sound more negative (e.g. sad, depressed, angry)."),
     ),
-    tabPanel("General Informations", fluid = TRUE,
+    tabPanel("Time Series Analysis", fluid = TRUE,
+             
+             h3("Time Series Analysis"),
+             br(),
+             hr(),
              
              fluidRow(
                column(2,), 
                column(10,style="left:3rem;",
                       sliderInput("year_avg_year",
                                   label = "Years", min = 1921, 
-                                  max = 2021, 
-                                  value = c(1921, 2021)),     
+                                  max = 2020, 
+                                  value = c(1921, 2020),
+                                  step =1 , sep=""),     
                ),
                
                column(2,
@@ -263,12 +278,6 @@ ui <- fluidPage(
                                         icon("align-center"), 
                                         class="btn btn-primary",
                                         style="margin:1rem; width:100%", 
-                               ),
-                               
-                               bsButton("btn_median", "median", 
-                                        icon("equals"), 
-                                        class="btn",
-                                        style="margin:1rem; width:100%",
                                ),
                                
                                bsButton("btn_boxplot", "boxplot", 
@@ -320,21 +329,13 @@ ui <- fluidPage(
              )
     ),
     
-    tabPanel("Search", fluid = TRUE,
-             fluidRow(
-               column(12,
-                      h3("Search Songs about your favorite artists"),
-                      strong("Todo:"),
-                      code("Utf-8 encoding of the variables, prep"),
-                      br(),
-                      hr(),
-                      # DT::dataTableOutput("stats_about_artist_table")
-                      DTOutput("stats_about_artist_table")
-               )
-             )
-    ),
-    tabPanel("Year Details", fluid = TRUE,
+    tabPanel("Year Slice", fluid = TRUE,
+             
+             
+             h3("Year Slice"),
              br(),
+             hr(),
+
              fluidRow(
                column(5,offset = 1,
                       sliderInput("year_for_details_left", label = "Select Year:", min = 1921, 
@@ -357,21 +358,19 @@ ui <- fluidPage(
                       plotOutput("year_music_key_details_right"),
                )
              ),
-             fluidRow(
-               column(8, offset = 2,
-                      # plotOutput("year_radar_details_left"),
-               )
-             ),
-             fluidRow(
-               column(6, offset = 0,
-                      #    plotOutput("year_corr_details_left")
-               ),
-               column(6,
-                      #    plotOutput("year_music_key_details_left")
-               ),
-             ),
              
-    )
+    ), 
+    tabPanel("Search", fluid = TRUE,
+             fluidRow(
+               column(12,
+                      h3("Search Songs about your favorite artists"),
+                      br(),
+                      hr(),
+                      # DT::dataTableOutput("stats_about_artist_table")
+                      DTOutput("stats_about_artist_table")
+               )
+             )
+    ),
     
     
   )
@@ -380,6 +379,7 @@ ui <- fluidPage(
 
 server <- function(input, output,session) {
   
+
   category_avg_year = reactive({ input$category_avg_year }) 
   year_avg_year = reactive({ input$year_avg_year })
   popularity_per_year = reactive({ input$popularity_per_year})
@@ -389,6 +389,8 @@ server <- function(input, output,session) {
   
   
   reactv = reactiveValues(plot_data = reload_data(clean,c("1921","2020"),0), choice=0 )
+
+  
   
   observeEvent(input$year_avg_year,{
     reactv$plot_data <-  reload_data(clean,input$year_avg_year,reactv$choice)
@@ -400,17 +402,10 @@ server <- function(input, output,session) {
     updateButton(session,'btn_boxplot',style = "secondary")
     updateButton(session,'btn_mean',style = "primary")
   })
-  
-  observeEvent(input$btn_median, {
-    reactv$choice= 1
-    updateButton(session,'btn_median',style = "primary")
-    updateButton(session,'btn_boxplot',style = "secondary")
-    updateButton(session,'btn_mean',style = "secondary")
-  })  
+
   
   observeEvent(input$btn_boxplot, {
     reactv$choice= 2
-    updateButton(session,'btn_median',style = "secondary")
     updateButton(session,'btn_boxplot',style = "primary")
     updateButton(session,'btn_mean',style = "secondary")
   })  
@@ -499,16 +494,13 @@ server <- function(input, output,session) {
   
   output$year_music_key_details_left = renderPlot({
     detail_year_song_data %>% filter( year == year_for_details_left()) -> selected_year_data
-    selected_year_data = subset(selected_year_data, select= -c(year))
+    selected_year_data.m <- melt(selected_year_data,id.vars='mode', 
+                                 measure.vars=c("acousticness", "danceability", "energy", "explicit", "instrumentalness", "liveness", 
+                                                                                   "mode" , "speechiness", "valence"))
     
-    ggplot( selected_year_data, aes(x=key)) +
-      geom_bar(fill="#69b3a2", color="#e9ecef", alpha=0.9) +
-      ggtitle("Musical Key Histogram") +
-      theme_ipsum() +
-      theme(
-        plot.title = element_text(size=15)
-      ) + scale_x_continuous(breaks=0:11,
-                             labels=c("C","C#","D","D#","E","F","F#","G","G#","A","A#","B"))
+    ggplot(selected_year_data.m) + 
+      geom_boxplot(aes(x=mode, y=value, color=variable))+
+      ggtitle("Attribute Box Plots")
   })
   
   output$year_radar_details_right = renderPlot({
@@ -544,16 +536,13 @@ server <- function(input, output,session) {
   
   output$year_music_key_details_right = renderPlot({
     detail_year_song_data %>% filter( year == year_for_details_right()) -> selected_year_data
-    selected_year_data = subset(selected_year_data, select= -c(year))
+    selected_year_data.m <- melt(selected_year_data,id.vars='mode', 
+                                 measure.vars=c("acousticness", "danceability", "energy", "explicit", "instrumentalness", "liveness", 
+                                                                                   "mode" , "speechiness", "valence"))
     
-    ggplot( selected_year_data, aes(x=key)) +
-      geom_bar(fill="#69b3a2", color="#e9ecef", alpha=0.9) +
-      ggtitle("Musical Key Histogram") +
-      theme_ipsum() +
-      theme(
-        plot.title = element_text(size=15)
-      ) + scale_x_continuous(breaks=0:11,
-                             labels=c("C","C#","D","D#","E","F","F#","G","G#","A","A#","B"))
+    ggplot(selected_year_data.m) + 
+      geom_boxplot(aes(x=mode, y=value, color=variable))+
+      ggtitle("Attribute Box Plots")
   })
   
   output$stats_about_artist_table <-  renderDT(df_search_table_Data,
